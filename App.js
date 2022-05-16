@@ -7,6 +7,7 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { NavigationContainer } from '@react-navigation/native';
 import Geocoder from 'react-native-geocoding';
 import config from './config.js';
+import SelectDropdown from 'react-native-select-dropdown'
 
 // Hide API key in gitignored config file. 
 Geocoder.init(config.REACT_APP_GOOGLE_API_KEY);
@@ -72,6 +73,26 @@ global.fakeLocation = {lat: null, lng: null};
 global.refresh = false;
 global.fake = false;
 global.address = null;
+global.personal = { 
+  age:0,
+  vax:0,
+  hyper_t:0,
+  obesity:0,
+  diabetes:0,
+  lung_d:0,
+  cardio_v:0,
+  neuro_l:0,
+  renal:0,
+  immuno_comp:0,
+  blood_d:0,
+  sex_M:0
+}
+global.loc = {
+  poscode: null,
+  venue: null,
+  hour: null,
+  day: null
+}
 
 const Drawer = createDrawerNavigator();
 
@@ -106,6 +127,90 @@ class Home extends React.Component{
       global.fakeLocation =  { lat: lat, lng: lng};
       this.getCaseLocAsync();
   }
+  updatePers(age,vax,hyper_t,obesity,diabetes,lung_d,cardio_v,neuro_l,renal,immuno_comp,blood_d,sex_M){
+      global.personal = { 
+        age:age,
+        vax:vax,
+        hyper_t:hyper_t,
+        obesity:obesity,
+        diabetes:diabetes,
+        lung_d:lung_d,
+        cardio_v:cardio_v,
+        neuro_l:neuro_l,
+        renal:renal,
+        immuno_comp:immuno_comp,
+        blood_d:blood_d,
+        sex_M:sex_M
+      };
+      this.pers_predict(global.personal);
+  };
+  updateLoc(poscode, venue, hour, day){
+      global.loc = { 
+        poscode: poscode,
+        venue: venue,
+        hour: hour,
+        day: day
+      };
+      this.loc_predict(global.loc);
+      console.log(global.loc)
+  };
+  
+  loc_predict = async (loc) => {
+    try {
+      const response = await fetch(
+        'http://localhost:8000/predict/location', {
+          method: 'POST',
+          headers: new Headers({
+            'accept':       'application/json', 
+            'Content-Type': 'application/json'
+          }), 
+          body: {
+            "poscode": loc.postcode,
+            "venue": loc.venue,
+            "hour": loc.hour,
+            "day": loc.day
+          }
+        }
+      );
+      const result = await response.json();
+      console.log(result);
+    } catch (error) {
+      console.error(error);
+    }
+    return;
+  };
+  pers_predict = async (person) => {
+    try {
+      const response = await fetch(
+        'http://localhost:8000/predict/personal', {
+          method: 'POST',
+          headers: new Headers({
+            'accept':       'application/json', 
+            'Content-Type': 'application/json'
+          }), 
+          body: {
+            "age": person.age,
+            "vax": person.vax,
+            "hyper_t": person.hyper_t,
+            "obesity": person.obesity,
+            "diabetes": person.diabetes,
+            "lung_d": person.lung_d,
+            "cardio_v": person.cardio_v,
+            "neuro_l": person.neuro_l,
+            "renal": person.renal,
+            "immuno_comp": person.immuno_comp,
+            "blood_d": person.blood_d,
+            "sex_M": person.sex_M
+          }
+        }
+      );
+      const result = await response.json();
+      console.log(result);
+    } catch (error) {
+      console.error(error);
+    }
+    return;
+  };
 
   componentDidMount(){
     let geoOptions = {
@@ -300,14 +405,51 @@ class settings extends Home{
 
          { !global.fake && (
         <View style={styles.searchLoc}>
-          <TextInput 
+          {/* <TextInput 
             placeholder="Enter address"
             style={styles.input}
             onChangeText={(value) => global.address = value}
+          /> */}
+          <SelectDropdown
+            data={['Monday','Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}
+            onSelect={(selectedItem, index) => {
+              global.loc.day = selectedItem
+              console.log(global.loc.day)
+            }}
+            
           />
+          <SelectDropdown
+            data={[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]}
+            onSelect={(selectedItem, index) => {
+              global.loc.hour = selectedItem
+              console.log(global.loc.hour)
+            }}
+            
+          />
+          <SelectDropdown
+            data={[
+              "Ernest by Hemingway",
+              "Panizzi",
+              "Rush Cedar's Courtyard",
+              "Ugly Duckling",
+              "UOW UniBar",
+              "UOW Library",
+              "UniActive",
+              "UOW IGA",
+              "Early Start Discovery Space",
+              'Wollongong Botanic Garden',
+              'Cleaver and Co Quality Meats'
+            ]}
+            onSelect={(selectedItem, index) => {
+              global.loc.venue = selectedItem
+              console.log(global.loc.venue)
+            }}
+            
+          />
+          
           <Button 
-            title="Search Address"
-            onPress={() => this.getLatLong(global.address)}
+            title="Enter Details"
+            onPress={() => this.updateLoc(null, global.loc.venue, global.loc.hour, global.loc.day)}
           />
         </View>
         )}
