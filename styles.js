@@ -9,6 +9,12 @@ export const styles = StyleSheet.create({
       alignItems: 'center',
       justifyContent: 'center',
     },
+    containerNew: {      
+      paddingTop: 30,
+      // backgroundColor: '#fff',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     searchLoc: {
       paddingTop: 30,
       alignItems: 'center',

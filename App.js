@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, Component } from 'react';
-import { Text, View, ActivityIndicator, Button, FlatList, TextInput } from 'react-native';
+import { Text, View, ActivityIndicator, Button, FlatList, TextInput, ScrollView, RefreshControl} from 'react-native';
 import * as Location from 'expo-location';
 import moment from 'moment';
 import { createDrawerNavigator } from '@react-navigation/drawer';
@@ -67,6 +67,21 @@ function getColorCount(count){
     return '#82E0AA';
   }
 }
+function getColorRisk(count){
+  if (count >= 75){
+    return '#EC7063';
+  } else if ((count < 75) && (count >= 55)){
+    return '#E59866';
+  } else if ((count < 55) && (count >= 40)){
+    return '#F8C471';
+  } else if ((count < 40) && (count >= 20)){
+    return '#17A589';
+  } else if ((count < 20) && (count >= 0)){
+    return '#7DCEA0';
+  } else {
+    return '#82E0AA';
+  }
+}
 
 global.location = {lat: null, lng: null};
 global.fakeLocation = {lat: null, lng: null};
@@ -93,6 +108,12 @@ global.loc = {
   hour: null,
   day: null
 }
+global.Prediction = {
+  Cases: 0,
+  Risk: 0,
+  Pers: 0
+}
+
 
 const Drawer = createDrawerNavigator();
 
@@ -101,6 +122,7 @@ export default function App() {
     <NavigationContainer>
       <Drawer.Navigator initialRouteName="INSITE">
         <Drawer.Screen name="INSITE" onPress={() => this.getCaseLocAsync()} component={Home} />
+        <Drawer.Screen name="INSITE AI" component={ai} />
         <Drawer.Screen name="Settings" component={settings} />
       </Drawer.Navigator>
     </NavigationContainer>
@@ -121,7 +143,13 @@ class Home extends React.Component{
     dataReceived: false,
     searching: false,
     refreshing: false,
+    PredictionCases: null,
+    PredictionRisk: null,
+    PredictionPers: null,
   }
+  // PredictionCases = null;
+  // PredictionRisk = null;
+  // PredictionPers = null;
   // }
   updateFakeLoc(lat, lng){
       global.fakeLocation =  { lat: lat, lng: lng};
@@ -158,22 +186,29 @@ class Home extends React.Component{
   loc_predict = async (loc) => {
     try {
       const response = await fetch(
-        'http://localhost:8000/predict/location', {
+        'http://192.168.0.61:80/predict/location', {
           method: 'POST',
           headers: new Headers({
             'accept':       'application/json', 
-            'Content-Type': 'application/json'
+            'Content-type': 'application/json'
           }), 
-          body: {
-            "poscode": loc.postcode,
+          body: JSON.stringify({
+            "poscode": 0,
             "venue": loc.venue,
             "hour": loc.hour,
             "day": loc.day
-          }
+          })
         }
       );
       const result = await response.json();
-      console.log(result);
+      global.Prediction.Cases = parseFloat(JSON.stringify(result.PredictionCases)).toFixed(0);
+      global.Prediction.Risk = parseFloat(JSON.stringify(result.PredictionRisk)).toFixed(1);
+      this.setState({
+        PredictionCases: global.Prediction.Cases,
+        PredictionRisk: global.Prediction.Risk
+      });
+      console.log(this.state.PredictionCases);
+      console.log(this.state.PredictionRisk);
     } catch (error) {
       console.error(error);
     }
@@ -182,13 +217,13 @@ class Home extends React.Component{
   pers_predict = async (person) => {
     try {
       const response = await fetch(
-        'http://localhost:8000/predict/personal', {
+        'http://192.168.0.61:80/predict/personal', {
           method: 'POST',
           headers: new Headers({
             'accept':       'application/json', 
             'Content-Type': 'application/json'
           }), 
-          body: {
+          body: JSON.stringify({
             "age": person.age,
             "vax": person.vax,
             "hyper_t": person.hyper_t,
@@ -201,7 +236,7 @@ class Home extends React.Component{
             "immuno_comp": person.immuno_comp,
             "blood_d": person.blood_d,
             "sex_M": person.sex_M
-          }
+          })
         }
       );
       const result = await response.json();
@@ -403,7 +438,7 @@ class settings extends Home{
     return (
       <View>
 
-         { !global.fake && (
+         
         <View style={styles.searchLoc}>
           {/* <TextInput 
             placeholder="Enter address"
@@ -449,22 +484,57 @@ class settings extends Home{
           
           <Button 
             title="Enter Details"
-            onPress={() => this.updateLoc(null, global.loc.venue, global.loc.hour, global.loc.day)}
+            onPress={() => this.updateLoc(0, global.loc.venue, global.loc.hour, global.loc.day)}
           />
+          <Text style={styles.infoAddress}>
+              {`Cases: ${global.Prediction.Cases}\n`}
+              {`Risk: ${global.Prediction.Risk}%`}
+          </Text>
         </View>
-        )}
+      </View>
+    );
+  }
+}
 
-        { global.fake && (
-        <View style={styles.searchLoc}>
-            <Text style={styles.infoAddress}>
-              {`Address: ${global.address}`}
-            </Text>
-            <Button style={{}}
-              title="Clear Address"
-              onPress={() => (this.updateFakeLoc(null, null), global.address = null)}
+class ai extends Home{
+  
+  onRefresh = () => {
+    this.setState({ refreshing: true });
+    // In actual case set refreshing to false when whatever is being refreshed is done!
+    setTimeout(() => {
+      this.setState({ refreshing: false });
+    }, 500);
+  };
+  render(){
+    return (
+      <View>
+        <ScrollView
+          refreshControl={
+            <RefreshControl
+              refreshing={this.state.refreshing}
+              onRefresh={this.onRefresh}
+              title="Pull to refresh"
             />
-        </View>
-        )}
+          }
+
+          // style={styles.container}
+          >
+          <View style={styles.containerNew}>
+            <View style={styles.infoCont}>
+              <Text style={[styles.DistText, {backgroundColor: getColorDist(12)} ]}>
+                {`${global.Prediction.Cases}\nCases`}
+              </Text>
+              <Text style={[styles.siteCount, {backgroundColor: getColorRisk(global.Prediction.Risk)} ]}>
+              {`${global.Prediction.Risk}%`}
+              </Text>
+            </View>
+          </View>
+          {/* <Text style={styles.infoAddress}>
+              {`Cases: ${global.Prediction.Cases}\n`}
+              {`Risk: ${global.Prediction.Risk}%`}
+          </Text> */}
+          
+        </ScrollView>
       </View>
     );
   }
