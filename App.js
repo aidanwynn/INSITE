@@ -8,7 +8,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import Geocoder from 'react-native-geocoding';
 import config from './config.js';
 import SelectDropdown from 'react-native-select-dropdown'
-
+ 
 // Hide API key in gitignored config file. 
 Geocoder.init(config.REACT_APP_GOOGLE_API_KEY);
 
@@ -67,6 +67,21 @@ function getColorCount(count){
     return '#82E0AA';
   }
 }
+function getColorCases(count){
+  if (count >= 150){
+    return '#EC7063';
+  } else if ((count < 150) && (count >= 100)){
+    return '#E59866';
+  } else if ((count < 100) && (count >= 70)){
+    return '#F8C471';
+  } else if ((count < 70) && (count >= 40)){
+    return '#17A589';
+  } else if ((count < 40) && (count >= 0)){
+    return '#7DCEA0';
+  } else {
+    return '#82E0AA';
+  }
+}
 function getColorRisk(count){
   if (count >= 75){
     return '#EC7063';
@@ -80,6 +95,15 @@ function getColorRisk(count){
     return '#7DCEA0';
   } else {
     return '#82E0AA';
+  }
+}
+function getColorChng(count){
+  if (count > 0){
+    return '#EC7063';
+  } else if (count < 0){
+    return '#7DCEA0';
+  } else {
+    return '#FFFFFF';
   }
 }
 
@@ -106,10 +130,12 @@ global.loc = {
   poscode: null,
   venue: null,
   hour: null,
-  day: null
+  day: null,
+  done:false
 }
 global.Prediction = {
   Cases: 0,
+  chng: 0,
   Risk: 0,
   Pers: 0
 }
@@ -122,8 +148,9 @@ export default function App() {
     <NavigationContainer>
       <Drawer.Navigator initialRouteName="INSITE">
         <Drawer.Screen name="INSITE" onPress={() => this.getCaseLocAsync()} component={Home} />
-        <Drawer.Screen name="INSITE AI" component={ai} />
-        <Drawer.Screen name="Settings" component={settings} />
+        <Drawer.Screen name="INSITE AI" component={AI} />
+        <Drawer.Screen name="Location Settings" component={Settings} />
+        <Drawer.Screen name="Personal Settings" component={SettingsPers} />
       </Drawer.Navigator>
     </NavigationContainer>
   );
@@ -186,7 +213,7 @@ class Home extends React.Component{
   loc_predict = async (loc) => {
     try {
       const response = await fetch(
-        'http://192.168.0.61:80/predict/location', {
+        'http://192.168.20.8:80/predict/location', {
           method: 'POST',
           headers: new Headers({
             'accept':       'application/json', 
@@ -201,10 +228,13 @@ class Home extends React.Component{
         }
       );
       const result = await response.json();
+      global.loc.done = true
       global.Prediction.Cases = parseFloat(JSON.stringify(result.PredictionCases)).toFixed(0);
+      global.Prediction.chng = parseFloat(JSON.stringify(result.Change)).toFixed(1);
       global.Prediction.Risk = parseFloat(JSON.stringify(result.PredictionRisk)).toFixed(1);
       this.setState({
         PredictionCases: global.Prediction.Cases,
+        Change: global.chng,
         PredictionRisk: global.Prediction.Risk
       });
       console.log(this.state.PredictionCases);
@@ -217,7 +247,7 @@ class Home extends React.Component{
   pers_predict = async (person) => {
     try {
       const response = await fetch(
-        'http://192.168.0.61:80/predict/personal', {
+        'http://192.168.20.8:80/predict/personal', {
           method: 'POST',
           headers: new Headers({
             'accept':       'application/json', 
@@ -240,7 +270,11 @@ class Home extends React.Component{
         }
       );
       const result = await response.json();
-      console.log(result);
+      global.Prediction.Pers = parseFloat(JSON.stringify(result.PredictionPers)).toFixed(1); 
+      this.setState({
+        PredictionPers: global.Prediction.Pers
+      });
+      console.log(this.state.PredictionPers);
     } catch (error) {
       console.error(error);
     }
@@ -419,84 +453,300 @@ class Home extends React.Component{
   }
 }
 
-class settings extends Home{
-
-  getLatLong = (lookup) => {
-    Geocoder.from(lookup, {
-      southwest: {lat: -37.5, lng: 140.0},
-      northeast: {lat: -27.9, lng: 153.8}})
-      .then(json => {
-        var fakeLocation = json.results[0].geometry.location;
-        console.log("fakeLocation found.");
-        this.updateFakeLoc(fakeLocation.lat, fakeLocation.lng);
-        console.log(fakeLocation.lat +", "+ fakeLocation.lng);
-      })
-      .catch(error => console.warn(error));
-  }
+class Settings extends Home{
 
   render(){
     return (
       <View>
-
-         
-        <View style={styles.searchLoc}>
-          {/* <TextInput 
-            placeholder="Enter address"
-            style={styles.input}
-            onChangeText={(value) => global.address = value}
-          /> */}
-          <SelectDropdown
-            data={['Monday','Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}
-            onSelect={(selectedItem, index) => {
-              global.loc.day = selectedItem
-              console.log(global.loc.day)
-            }}
-            
-          />
-          <SelectDropdown
-            data={[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]}
-            onSelect={(selectedItem, index) => {
-              global.loc.hour = selectedItem
-              console.log(global.loc.hour)
-            }}
-            
-          />
-          <SelectDropdown
-            data={[
-              "Ernest by Hemingway",
-              "Panizzi",
-              "Rush Cedar's Courtyard",
-              "Ugly Duckling",
-              "UOW UniBar",
-              "UOW Library",
-              "UniActive",
-              "UOW IGA",
-              "Early Start Discovery Space",
-              'Wollongong Botanic Garden',
-              'Cleaver and Co Quality Meats'
-            ]}
-            onSelect={(selectedItem, index) => {
-              global.loc.venue = selectedItem
-              console.log(global.loc.venue)
-            }}
-            
-          />
-          
-          <Button 
-            title="Enter Details"
-            onPress={() => this.updateLoc(0, global.loc.venue, global.loc.hour, global.loc.day)}
-          />
-          <Text style={styles.infoAddress}>
-              {`Cases: ${global.Prediction.Cases}\n`}
-              {`Risk: ${global.Prediction.Risk}%`}
-          </Text>
-        </View>
+        <ScrollView>
+          <View style={styles.listItemLoc}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Day: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={['Monday','Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']}
+                onSelect={(selectedItem, index) => {
+                  global.loc.day = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItemLoc}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Hour: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]}
+                defaultValue={(12)}
+                onSelect={(selectedItem, index) => {
+                  global.loc.hour = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItemLoc}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Hour: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[
+                  "Ernest by Hemingway",
+                  "Panizzi",
+                  "Rush Cedar's Courtyard",
+                  "Ugly Duckling",
+                  "UOW UniBar",
+                  "UOW Library",
+                  "UniActive",
+                  "UOW IGA",
+                  "Early Start Discovery Space",
+                  'Wollongong Botanic Garden',
+                  'Cleaver and Co Quality Meats'
+                ]}
+                onSelect={(selectedItem, index) => {
+                  global.loc.venue = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItemLoc}>
+            <View style={styles.doneBit4}>
+              <Button style={styles.listItem3But} 
+                color="#878787"
+                title="Confirm"
+                onPress={() => this.updateLoc(0, global.loc.venue, global.loc.hour, global.loc.day)}
+              />
+            </View>
+            <View style={styles.doneBit}>
+              <Text style={styles.doneBitTX}>
+                {global.loc.done != false? 'Done.' : ''}
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
       </View>
     );
   }
 }
+class SettingsPers extends Home{
+  render(){
+    return (
+      <View>
+        <ScrollView>
+          <View style={styles.listItem2}>
+              <Text style={{fontSize: 16}}>
+                <Text style={{fontWeight: "bold", fontSize: 18, fontStyle: 'italic'}}>Note:</Text> Rate all health statistic values from 0-5, based on 
+                the degree to which the factor affects you. 0 being <Text style={{fontWeight: "bold",fontStyle: 'italic'}}>none</Text> and 
+                5 being <Text style={{fontWeight: "bold",fontStyle: 'italic'}}>completely</Text>. 
+                
+              </Text>
+          </View>
+          <View style={styles.listItem2}>
+              <TextInput 
+                placeholder="Enter your age"
+                style={styles.input}
+                onChangeText={(value) => global.personal.age = value}
+              />
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Sex: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={['Female', 'Male']}
+                placeholder="Sex"
+                onSelect={(selectedItem, index) => {
+                  global.personal.sex_M = index
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Vaccinated: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={['No', 'Yes']}
+                onSelect={(selectedItem, index) => {
+                  global.personal.vax = index
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Hypertension: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.hyper_t = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Obesity: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.obesity = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Diabetes: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.diabetes = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Lung disease: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.lung_d = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Cardiovascular issues: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.cardio_v = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Neurological disease: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.neuro_l = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Renal disease: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.renal = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Immuno- compromised: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.immuno_comp = selectedItem
+                }}
+              />
+            </View>
+          </View>
+          <View style={styles.listItem2}>
+            <View style={styles.SiteCont2}>
+              <Text style={styles.SubText2}>
+                Blood disorder: 
+              </Text>
+            </View>
+            <View style={styles.infoCont2}>
+              <SelectDropdown buttonStyle={styles.selectOption}
+                data={[0, 1, 2, 3, 4, 5]}
+                onSelect={(selectedItem, index) => {
+                  global.personal.blood_d = selectedItem
+                }}
+              />
+            </View>
+          </View>
+            <View style={styles.listItem3}>
+              <View style={styles.doneBit2}>
+                <Button style={styles.listItem3But} 
+                  color="#878787"
+                  title="Confirm Details"
+                  onPress={() => this.updatePers(global.personal.age,global.personal.vax,global.personal.hyper_t,
+                    global.personal.obesity,global.personal.diabetes,global.personal.lung_d,global.personal.cardio_v,
+                    global.personal.neuro_l,global.personal.renal,global.personal.immuno_comp,global.personal.blood_d,global.personal.sex_M)
+                  }
+                />
+              </View>
+              <View style={styles.doneBit}>
+                <Text style={styles.doneBitTX}>
+                  {global.personal.age > 0? 'Done.' : ''}
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
+      </View>
+        
+    );
+  }
+}
 
-class ai extends Home{
+class AI extends Home{
   
   onRefresh = () => {
     this.setState({ refreshing: true });
@@ -507,7 +757,7 @@ class ai extends Home{
   };
   render(){
     return (
-      <View>
+      <View style={styles.outer}>
         <ScrollView
           refreshControl={
             <RefreshControl
@@ -515,25 +765,50 @@ class ai extends Home{
               onRefresh={this.onRefresh}
               title="Pull to refresh"
             />
-          }
-
-          // style={styles.container}
-          >
+          }>
+            <Text style={styles.updated2}>
+                COVID-19 Relative Risk Dashboard
+            </Text>
           <View style={styles.containerNew}>
-            <View style={styles.infoCont}>
-              <Text style={[styles.DistText, {backgroundColor: getColorDist(12)} ]}>
-                {`${global.Prediction.Cases}\nCases`}
+            <View style={styles.SiteContDash}>              
+              <Text style={[styles.RiskView, {backgroundColor: getColorRisk(global.Prediction.Pers)} ]}>
+              {`${global.Prediction.Pers}%`}
               </Text>
-              <Text style={[styles.siteCount, {backgroundColor: getColorRisk(global.Prediction.Risk)} ]}>
+            </View>
+            <View style={styles.SiteContDash}>
+              <Text style={[styles.RiskView, {backgroundColor: getColorRisk(global.Prediction.Risk)} ]}>
               {`${global.Prediction.Risk}%`}
               </Text>
             </View>
           </View>
-          {/* <Text style={styles.infoAddress}>
-              {`Cases: ${global.Prediction.Cases}\n`}
-              {`Risk: ${global.Prediction.Risk}%`}
-          </Text> */}
-          
+          <View style={styles.containerNew}>
+            <View style={styles.SiteContDash}>              
+              <Text style={styles.SubText}>
+                Personal
+              </Text>
+            </View>
+            <View style={styles.SiteContDash}>
+              <Text style={styles.SubText}>
+                Location
+              </Text>
+            </View>
+          </View>
+         
+            <Text style={styles.updated3}>
+                Predicted COVID-19 Cases
+            </Text>
+          <View style={styles.containerNew}>
+            <View style={styles.SiteContDashL}>              
+              <Text style={[styles.casesView, {backgroundColor: getColorCases(global.Prediction.Cases)} ]}>
+                {`${global.Prediction.Cases}\n`}{global.Prediction.Cases > 1? 'Cases': 'Case' }
+              </Text>
+            </View>
+            <View style={styles.SiteContDashR}>
+              <Text style={[styles.casesChange, {backgroundColor: getColorChng(global.Prediction.chng)} ]}>
+                {global.Prediction.chng > 0? '+': '' }{`${global.Prediction.chng}`}
+              </Text>
+            </View>
+          </View>          
         </ScrollView>
       </View>
     );
