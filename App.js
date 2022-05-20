@@ -103,8 +103,13 @@ function getColorChng(count){
   } else if (count < 0){
     return '#7DCEA0';
   } else {
-    return '#FFFFFF';
+    return 'rgba(255, 255, 255, 0)';
   }
+}
+function avgerage(a,b){
+  var x = (parseFloat(a)+parseFloat(b)) / 2
+  x = x.toFixed(1)
+  return x
 }
 
 global.location = {lat: null, lng: null};
@@ -135,9 +140,10 @@ global.loc = {
 }
 global.Prediction = {
   Cases: 0,
-  chng: 0,
+  chng: null,
   Risk: 0,
-  Pers: 0
+  Pers: 0,
+  Average:0
 }
 
 
@@ -148,7 +154,7 @@ export default function App() {
     <NavigationContainer>
       <Drawer.Navigator initialRouteName="INSITE">
         <Drawer.Screen name="INSITE" onPress={() => this.getCaseLocAsync()} component={Home} />
-        <Drawer.Screen name="INSITE AI" component={AI} />
+        <Drawer.Screen name="INSITE AI" onPress={() => this.onRefresh} component={AI} /> 
         <Drawer.Screen name="Location Settings" component={Settings} />
         <Drawer.Screen name="Personal Settings" component={SettingsPers} />
       </Drawer.Navigator>
@@ -230,8 +236,10 @@ class Home extends React.Component{
       const result = await response.json();
       global.loc.done = true
       global.Prediction.Cases = parseFloat(JSON.stringify(result.PredictionCases)).toFixed(0);
-      global.Prediction.chng = parseFloat(JSON.stringify(result.Change)).toFixed(1);
+      global.Prediction.chng = parseFloat(JSON.stringify(result.Change)).toFixed(0);
       global.Prediction.Risk = parseFloat(JSON.stringify(result.PredictionRisk)).toFixed(1);
+      // global.Prediction.Average = parseFloat((global.Prediction.Pers + global.Prediction.Risk)/2).toFixed(1);
+      global.Prediction.Average = avgerage(global.Prediction.Pers, global.Prediction.Risk);
       this.setState({
         PredictionCases: global.Prediction.Cases,
         Change: global.chng,
@@ -271,6 +279,7 @@ class Home extends React.Component{
       );
       const result = await response.json();
       global.Prediction.Pers = parseFloat(JSON.stringify(result.PredictionPers)).toFixed(1); 
+      global.Prediction.Average = avgerage(global.Prediction.Pers, global.Prediction.Risk);
       this.setState({
         PredictionPers: global.Prediction.Pers
       });
@@ -459,6 +468,12 @@ class Settings extends Home{
     return (
       <View>
         <ScrollView>
+          <View style={styles.listItem2}>
+            <Text style={{fontSize: 16}}>
+              Enter a <Text style={{fontWeight: "bold",fontStyle: 'italic'}}>day</Text>, <Text style={{fontWeight: "bold",fontStyle: 'italic'}}>time </Text>
+               and <Text style={{fontWeight: "bold",fontStyle: 'italic'}}>venue</Text> for a location you wish to visit.
+            </Text>
+          </View>
           <View style={styles.listItemLoc}>
             <View style={styles.SiteCont2}>
               <Text style={styles.SubText2}>
@@ -493,7 +508,7 @@ class Settings extends Home{
           <View style={styles.listItemLoc}>
             <View style={styles.SiteCont2}>
               <Text style={styles.SubText2}>
-                Hour: 
+                Venue: 
               </Text>
             </View>
             <View style={styles.infoCont2}>
@@ -793,20 +808,39 @@ class AI extends Home{
               </Text>
             </View>
           </View>
-         
-            <Text style={styles.updated3}>
-                Predicted COVID-19 Cases
-            </Text>
           <View style={styles.containerNew}>
+            <View style={styles.SiteContDashAv}>              
+              <Text style={[styles.average, {backgroundColor: getColorRisk(global.Prediction.Average)} ]}>
+                {`${global.Prediction.Average}%`}
+              </Text>
+            </View>
+          </View>  
+          <View style={styles.containerNew}>
+            <View style={styles.SiteContDash}>              
+              <Text style={styles.SubText}>
+                Overall Risk
+              </Text>
+            </View>
+          </View>  
+            <Text style={styles.updated3}>
+                Predicted COVID-19 Cases{"\n"} 
+                for Today
+            </Text>
+          <View style={styles.containerNew2}>
             <View style={styles.SiteContDashL}>              
               <Text style={[styles.casesView, {backgroundColor: getColorCases(global.Prediction.Cases)} ]}>
                 {`${global.Prediction.Cases}\n`}{global.Prediction.Cases > 1? 'Cases': 'Case' }
               </Text>
             </View>
             <View style={styles.SiteContDashR}>
-              <Text style={[styles.casesChange, {backgroundColor: getColorChng(global.Prediction.chng)} ]}>
-                {global.Prediction.chng > 0? '+': '' }{`${global.Prediction.chng}`}
-              </Text>
+              {global.Prediction.chng != null?  
+                <Text style={[styles.casesChange, {backgroundColor: getColorChng(global.Prediction.chng)} ]}>
+                    {global.Prediction.chng > 0? '+': '' }{`${global.Prediction.chng}`}
+                </Text>
+                : 
+                <Text style={[styles.casesChange, {backgroundColor: getColorChng(global.Prediction.chng)} ]}>
+                </Text>
+              }
             </View>
           </View>          
         </ScrollView>
