@@ -204,6 +204,7 @@ class Home extends React.Component{
         sex_M:sex_M
       };
       this.pers_predict(global.personal);
+      console.log(global.personal);
   };
   updateLoc(poscode, venue, hour, day){
       global.loc = { 
@@ -213,7 +214,7 @@ class Home extends React.Component{
         day: day
       };
       this.loc_predict(global.loc);
-      console.log(global.loc)
+      console.log(global.loc);
   };
   
   loc_predict = async (loc) => {
@@ -829,7 +830,7 @@ class AI extends Home{
           <View style={styles.containerNew2}>
             <View style={styles.SiteContDashL}>              
               <Text style={[styles.casesView, {backgroundColor: getColorCases(global.Prediction.Cases)} ]}>
-                {`${global.Prediction.Cases}\n`}{global.Prediction.Cases > 1? 'Cases': 'Case' }
+                {`${global.Prediction.Cases}\n`}{global.Prediction.Cases != 1? 'Cases': 'Case' }
               </Text>
             </View>
             <View style={styles.SiteContDashR}>
