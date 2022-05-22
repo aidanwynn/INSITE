@@ -132,7 +132,7 @@ global.personal = {
   sex_M:0
 }
 global.loc = {
-  poscode: null,
+  postcode: null,
   venue: null,
   hour: null,
   day: null,
@@ -206,9 +206,9 @@ class Home extends React.Component{
       this.pers_predict(global.personal);
       console.log(global.personal);
   };
-  updateLoc(poscode, venue, hour, day){
+  updateLoc(postcode, venue, hour, day){
       global.loc = { 
-        poscode: poscode,
+        postcode: postcode,
         venue: venue,
         hour: hour,
         day: day
@@ -227,7 +227,7 @@ class Home extends React.Component{
             'Content-type': 'application/json'
           }), 
           body: JSON.stringify({
-            "poscode": 0,
+            "postcode": 0,
             "venue": loc.venue,
             "hour": loc.hour,
             "day": loc.day
