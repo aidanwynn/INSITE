@@ -132,7 +132,7 @@ global.personal = {
   sex_M:0
 }
 global.loc = {
-  postcode: null,
+  postcode: 2500,
   venue: null,
   hour: null,
   day: null,
@@ -220,7 +220,7 @@ class Home extends React.Component{
   loc_predict = async (loc) => {
     try {
       const response = await fetch(
-        'http://192.168.20.8:80/predict/location', {
+        'http://192.168.20.3:80/predict/location', {
           method: 'POST',
           headers: new Headers({
             'accept':       'application/json', 
@@ -256,7 +256,7 @@ class Home extends React.Component{
   pers_predict = async (person) => {
     try {
       const response = await fetch(
-        'http://192.168.20.8:80/predict/personal', {
+        'http://192.168.20.3:80/predict/personal', {
           method: 'POST',
           headers: new Headers({
             'accept':       'application/json', 
@@ -306,7 +306,7 @@ class Home extends React.Component{
     navigator.geolocation.clearWatch(id);
   }
   geoSuccess = (location) => {
-    console.log("Location found.");
+    // console.log("Location found.");
     // console.log(location);
     this.setState({
       ready:true
@@ -328,7 +328,7 @@ class Home extends React.Component{
       var time = moment((result.date + " " + result.time), "YYYY-MM-DD h:mm a");
       time = time.fromNow();
       var list = result.data.monitor;
-      console.log("Data received.");
+      // console.log("Data received.");
 
       var lat; var lng;
       // Check if we're using a fake Location
@@ -538,7 +538,7 @@ class Settings extends Home{
               <Button style={styles.listItem3But} 
                 color="#878787"
                 title="Confirm"
-                onPress={() => this.updateLoc(0, global.loc.venue, global.loc.hour, global.loc.day)}
+                onPress={() => this.updateLoc(2500, global.loc.venue, global.loc.hour, global.loc.day)}
               />
             </View>
             <View style={styles.doneBit}>
